@@ -16,6 +16,7 @@ PLAYER_SPEED_FOCUS = 2
 BULLET_SPEED = 15
 POWER_POINT = 0.00
 SHOOT_DELAY = 50
+POWER_CHANGE_DELAY = 200 
 
 # Placeable Colors
 WHITE = (255, 255, 255)
@@ -57,6 +58,7 @@ class Player(pygame.sprite.Sprite):
         self.speed_focus = PLAYER_SPEED_FOCUS
         self.last_shot_time = 0
         self.power = POWER_POINT
+        self.last_power_change = 0
 
     def update(self):
         keys = pygame.key.get_pressed()
@@ -78,10 +80,20 @@ class Player(pygame.sprite.Sprite):
                 self.rect.y -= self.speed_spread
             if keys[pygame.K_DOWN] and self.rect.bottom < HEIGHT:
                 self.rect.y += self.speed_spread
-        if keys[pygame.K_i] and (self.power <= 4.00):
-            self.power += 1.00
-        if keys[pygame.K_o] and (self.power >= 0.00):
-            self.power -= 1.00
+  # Add to Player class
+ # milliseconds
+
+# Update method in Player
+        current_time = pygame.time.get_ticks()
+        if current_time - self.last_power_change >= POWER_CHANGE_DELAY:
+            if keys[pygame.K_i] and self.power < 4.00:
+                self.power += 1.00
+                self.last_power_change = current_time
+            if keys[pygame.K_o] and self.power > 0.00:
+                self.power -= 1.00
+                self.last_power_change = current_time
+
+            
     def can_shoot(self):
         current_time = pygame.time.get_ticks()  # Get the current time in milliseconds
         if current_time - self.last_shot_time >= SHOOT_DELAY:  # Check if enough time has passed since last shot
@@ -93,6 +105,19 @@ class Player(pygame.sprite.Sprite):
         all_sprites.add(bullet)
         bullets.add(bullet)
         self.last_shot_time = pygame.time.get_ticks()
+        
+    def shoot_focus(self):
+        cluster_size = 3 + int(self.power)  # Cluster grows with power level
+        spacing = 20  # Spacing gets tighter with power
+
+        for i in range(-(cluster_size // 2), (cluster_size // 2) + 1):
+            offset_x = i * spacing
+            bullet = Bullet(self.rect.centerx + offset_x, self.rect.centery, math.radians(270), BULLET_SPEED)
+            all_sprites.add(bullet)
+            bullets.add(bullet)
+
+        self.last_shot_time = pygame.time.get_ticks()
+
         
 # Setup sprites and groups
 player = Player()
@@ -115,25 +140,23 @@ while running:
     all_sprites.update()
     keys = pygame.key.get_pressed()
     if keys[pygame.K_LCTRL] and player.can_shoot():
-        if keys[pygame.K_LSHIFT]: # Focused Shot
-            # Initial Shot (PP = 0.00+ / 4.00)
-            player.shoot()
-            # FIXME: Add 4 different focus shot type
-        else: # Spread Shot
-            # Initial Shot (PP = 0.00+ / 4.00)
-            player.shoot(angle=260)
-            player.shoot(angle=280)
-            if player.power >=1.00: # PP = 1.00+ / 4.00
-                player.shoot()
-            if player.power >= 2.00: # PP = 2.00+ / 4.00
-                player.shoot(angle=255)
-                player.shoot(angle=285)
-            if player.power >= 3.00: # PP = 3.00+ / 4.00
-                player.shoot(angle=240)
-                player.shoot(angle=300)
-            if player.power >= 4.00: # PP = 4.00 / 4.00
-                player.shoot(angle=250)
-                player.shoot(angle=290)
+        if keys[pygame.K_LSHIFT]:  # Focused Shot
+            player.shoot_focus()
+        else:  # Spread Shot
+            spread_angles = [270]
+            if player.power >= 1.00:
+                spread_angles += [260, 280]
+            if player.power >= 2.00:
+                spread_angles += [255, 285]
+            if player.power >= 3.00:
+                spread_angles += [240, 300]
+            if player.power >= 4.00:
+                spread_angles += [250, 290]
+            for angle in spread_angles:
+                player.shoot(angle=angle)
+
+
+
     # Draw everything
     screen.fill(BLACK)
     all_sprites.draw(screen)
